@@ -60,6 +60,7 @@ async fn main() -> Result<()> {
         .merge(routes::contract_routes())
         .merge(routes::publisher_routes())
         .merge(routes::health_routes())
+        .merge(routes::migration_routes())
         .fallback(handlers::route_not_found)
         .layer(CorsLayer::permissive())
         .layer(cors)

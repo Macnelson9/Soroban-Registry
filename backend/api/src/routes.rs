@@ -1,5 +1,5 @@
 use axum::{
-    routing::{get, post},
+    routing::{get, post, put},
     Router,
 };
 
@@ -28,4 +28,11 @@ pub fn health_routes() -> Router<AppState> {
     Router::new()
         .route("/health", get(handlers::health_check))
         .route("/api/stats", get(handlers::get_stats))
+}
+
+/// Migration-related routes
+pub fn migration_routes() -> Router<AppState> {
+    Router::new()
+        .route("/api/migrations", post(handlers::migrations::create_migration).get(handlers::migrations::get_migrations))
+        .route("/api/migrations/:id", put(handlers::migrations::update_migration).get(handlers::migrations::get_migration))
 }

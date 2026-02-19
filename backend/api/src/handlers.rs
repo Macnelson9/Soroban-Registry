@@ -1,3 +1,5 @@
+pub mod migrations;
+
 use axum::{
     extract::{
         rejection::{JsonRejection, QueryRejection},
