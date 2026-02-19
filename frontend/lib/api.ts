@@ -111,7 +111,7 @@ export const api = {
     if (params?.page) queryParams.append('page', String(params.page));
     if (params?.page_size) queryParams.append('page_size', String(params.page_size));
 
-    const response = await fetch(apiUrl(`/api/contracts?${queryParams}`));
+    const response = await fetch(`${API_URL}/api/contracts?${queryParams}`);
     if (!response.ok) throw new Error('Failed to fetch contracts');
     return response.json();
   },

@@ -86,7 +86,7 @@ pub async fn info(api_url: &str, contract_id: &str) -> Result<()> {
     println!("\n{}: {}", "Name".bold(), contract["name"].as_str().unwrap_or("Unknown"));
     println!("{}: {}", "Contract ID".bold(), contract["contract_id"].as_str().unwrap_or(""));
     println!("{}: {}", "Network".bold(), contract["network"].as_str().unwrap_or("").bright_blue());
-    
+
     let is_verified = contract["is_verified"].as_bool().unwrap_or(false);
     println!(
         "{}: {}",
@@ -232,7 +232,7 @@ pub async fn migrate(
     // 1. Read WASM file
     let wasm_bytes = fs::read(wasm_path)
         .with_context(|| format!("Failed to read WASM file at {}", wasm_path))?;
-    
+
     // 2. Compute Hash
     let mut hasher = Sha256::new();
     hasher.update(&wasm_bytes);
@@ -253,7 +253,7 @@ pub async fn migrate(
     // 3. Create Migration Record (Pending)
     let client = reqwest::Client::new();
     let create_url = format!("{}/api/migrations", api_url);
-    
+
     let payload = json!({
         "contract_id": contract_id,
         "wasm_hash": wasm_hash,
@@ -279,7 +279,7 @@ pub async fn migrate(
 
     // 4. Execute Migration (Mock or Real)
     println!("\n{}", "Executing migration logic...".bold());
-    
+
     // Check if soroban is installed
     let version_output = Command::new("soroban")
         .arg("--version")
@@ -288,24 +288,24 @@ pub async fn migrate(
 
     let (status, log_output) = if version_output.is_err() {
         println!("{}", "Warning: 'soroban' CLI not found. Running in MOCK mode.".yellow());
-        
+
         if simulate_fail {
-             println!("{}", "Simulating FAILURE...".red());
-             (shared::models::MigrationStatus::Failed, "Simulation: Migration failed as requested.".to_string())
+            println!("{}", "Simulating FAILURE...".red());
+            (shared::models::MigrationStatus::Failed, "Simulation: Migration failed as requested.".to_string())
         } else {
-             println!("{}", "Simulating SUCCESS...".green());
-             (shared::models::MigrationStatus::Success, "Simulation: Migration succeeded.".to_string())
+            println!("{}", "Simulating SUCCESS...".green());
+            (shared::models::MigrationStatus::Success, "Simulation: Migration succeeded.".to_string())
         }
     } else {
-        // Real execution would go here. For now we will just mock it even if soroban exists 
+        // Real execution would go here. For now we will just mock it even if soroban exists
         // because we don't have a real contract to invoke in this environment.
         println!("{}", "Soroban CLI found, but full integration is pending. Running in MOCK mode.".yellow());
-         if simulate_fail {
-             println!("{}", "Simulating FAILURE...".red());
-             (shared::models::MigrationStatus::Failed, "Simulation: Migration failed as requested.".to_string())
+        if simulate_fail {
+            println!("{}", "Simulating FAILURE...".red());
+            (shared::models::MigrationStatus::Failed, "Simulation: Migration failed as requested.".to_string())
         } else {
-             println!("{}", "Simulating SUCCESS...".green());
-             (shared::models::MigrationStatus::Success, "Simulation: Migration executed successfully via soroban CLI (mocked).".to_string())
+            println!("{}", "Simulating SUCCESS...".green());
+            (shared::models::MigrationStatus::Success, "Simulation: Migration executed successfully via soroban CLI (mocked).".to_string())
         }
     };
 
@@ -327,10 +327,90 @@ pub async fn migrate(
     } else {
         println!("\n{}", "Migration recorded successfully.".green().bold());
         if status == shared::models::MigrationStatus::Failed {
-             println!("{}", "Status: FAILED".red().bold());
+            println!("{}", "Status: FAILED".red().bold());
         } else {
-             println!("{}", "Status: SUCCESS".green().bold());
+            println!("{}", "Status: SUCCESS".green().bold());
         }
+    }
+
+    Ok(())
+}
+
+pub async fn export(
+    api_url: &str,
+    contract_id: &str,
+    output: &str,
+    contract_dir: &str,
+) -> Result<()> {
+    println!("\n{}", "Exporting contract...".bold().cyan());
+
+    let client = reqwest::Client::new();
+    let url = format!("{}/api/contracts/{}", api_url, contract_id);
+
+    let (name, network) = match client.get(&url).send().await {
+        Ok(resp) if resp.status().is_success() => {
+            let data: serde_json::Value = resp.json().await?;
+            (
+                data["name"].as_str().unwrap_or(contract_id).to_string(),
+                data["network"].as_str().unwrap_or("unknown").to_string(),
+            )
+        }
+        _ => (contract_id.to_string(), "unknown".to_string()),
+    };
+
+    let source = std::path::Path::new(contract_dir);
+    anyhow::ensure!(source.is_dir(), "contract directory does not exist: {}", contract_dir);
+
+    crate::export::create_archive(
+        source,
+        std::path::Path::new(output),
+        contract_id,
+        &name,
+        &network,
+    )?;
+
+    println!("{}", "✓ Export complete!".green().bold());
+    println!("  {}: {}", "Output".bold(), output);
+    println!("  {}: {}", "Contract".bold(), contract_id.bright_black());
+    println!("  {}: {}\n", "Name".bold(), name);
+
+    Ok(())
+}
+
+pub async fn import(
+    api_url: &str,
+    archive: &str,
+    network: &str,
+    output_dir: &str,
+) -> Result<()> {
+    println!("\n{}", "Importing contract...".bold().cyan());
+
+    let archive_path = std::path::Path::new(archive);
+    anyhow::ensure!(archive_path.is_file(), "archive not found: {}", archive);
+
+    let dest = std::path::Path::new(output_dir);
+
+    let manifest = crate::import::extract_and_verify(archive_path, dest)?;
+
+    println!("{}", "✓ Import complete — integrity verified!".green().bold());
+    println!("  {}: {}", "Contract".bold(), manifest.contract_id.bright_black());
+    println!("  {}: {}", "Name".bold(), manifest.name);
+    println!("  {}: {}", "Network".bold(), network.bright_blue());
+    println!("  {}: {}", "SHA-256".bold(), manifest.sha256.bright_black());
+    println!("  {}: {}", "Exported At".bold(), manifest.exported_at);
+    println!("  {}: {} file(s)", "Contents".bold(), manifest.contents.len());
+    println!("  {}: {}", "Extracted To".bold(), output_dir);
+
+    if api_url != "http://localhost:3001" || network != "unknown" {
+        println!(
+            "\n  {} To register on {}, run:",
+            "→".bright_black(),
+            network.bright_blue()
+        );
+        println!(
+            "    soroban-registry publish --contract-id {} --name \"{}\" --network {} --publisher <address>\n",
+            manifest.contract_id, manifest.name, network
+        );
     }
 
     Ok(())
