@@ -10,16 +10,16 @@ use axum::{
 use serde::Deserialize;
 use uuid::Uuid;
 
+use crate::models::{
+    AuditCheckRow, AuditRecord, AuditResponse, CategoryScore, CheckStatus, CheckWithStatus,
+    ContractSecuritySummary, CreateAuditRequest, DetectionMethod, ExportRequest,
+    UpdateCheckRequest,
+};
 use crate::{
     checklist::all_checks,
     detector::detect_all,
     scoring::{build_markdown_report, calculate_scores, score_badge},
     state::AppState,
-};
-use shared::models::{
-    AuditCheckRow, AuditRecord, AuditResponse, CategoryScore, CheckStatus, CheckWithStatus,
-    ContractSecuritySummary, CreateAuditRequest, DetectionMethod, ExportRequest,
-    UpdateCheckRequest,
 };
 
 // ─────────────────────────────────────────────────────────

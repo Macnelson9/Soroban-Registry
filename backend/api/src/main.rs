@@ -13,9 +13,12 @@ mod contract_history_routes;
 mod detector;
 mod error;
 mod handlers;
+mod models;
+mod multisig_handlers;
+mod multisig_routes;
+mod popularity;
 mod rate_limit;
 mod routes;
-mod scoring;
 mod state;
 mod health_monitor;
 
@@ -60,6 +63,8 @@ async fn main() -> Result<()> {
 
     tracing::info!("Database connected and migrations applied");
 
+    // Spawn background popularity scoring job (runs hourly)
+    popularity::spawn_popularity_task(pool.clone());
     // Spawn the hourly analytics aggregation background task
     aggregation::spawn_aggregation_task(pool.clone());
 
