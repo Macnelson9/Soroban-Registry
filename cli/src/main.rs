@@ -99,6 +99,14 @@ enum Commands {
     Config {
         #[command(subcommand)]
         action: ConfigSubcommands,
+    },
+    ScanDeps {
+        #[arg(long)]
+        contract_id: String,
+        #[arg(long, default_value = ",")]
+        dependencies: String,
+        #[arg(long, default_value_t = false)]
+        fail_on_high: bool,
     }
 }
 
@@ -272,6 +280,9 @@ async fn main() -> Result<()> {
             ConfigSubcommands::Rollback { contract_id, environment, version, created_by } => {
                 commands::config_rollback(&cli.api_url, &contract_id, &environment, version, &created_by).await?;
             }
+        },
+        Commands::ScanDeps { contract_id, dependencies, fail_on_high } => {
+            commands::scan_deps(&cli.api_url, &contract_id, &dependencies, fail_on_high).await?;
         },
     }
 

@@ -745,3 +745,82 @@ pub async fn config_rollback(
 
     Ok(())
 }
+
+pub async fn scan_deps(
+    api_url: &str,
+    contract_id: &str,
+    dependencies: &str,
+    fail_on_high: bool,
+) -> Result<()> {
+    println!("\n{}", "Scanning Dependencies...".bold().cyan());
+
+    let client = reqwest::Client::new();
+    let url = format!("{}/api/contracts/{}/scan", api_url, contract_id);
+
+    // Parse dependencies
+    let mut deps_list = Vec::new();
+    for dep_pair in dependencies.split(',') {
+        if dep_pair.is_empty() {
+            continue;
+        }
+        let parts: Vec<&str> = dep_pair.split('@').collect();
+        if parts.len() == 2 {
+            deps_list.push(json!({
+                "package_name": parts[0].trim(),
+                "version": parts[1].trim()
+            }));
+        }
+    }
+
+    let payload = json!({
+        "dependencies": deps_list,
+    });
+
+    let response = client
+        .post(&url)
+        .json(&payload)
+        .send()
+        .await
+        .context("Failed to run dependency scan")?;
+
+    if !response.status().is_success() {
+        anyhow::bail!("Scan failed: {}", response.text().await.unwrap_or_default());
+    }
+
+    let report: serde_json::Value = response.json().await?;
+    let findings = report["findings"].as_array().unwrap();
+
+    if findings.is_empty() {
+        println!("{}", "✓ No vulnerabilities found!".green().bold());
+        return Ok(());
+    }
+
+    let mut has_high_severity = false;
+    println!("\n{}", "Vulnerabilities Found:".bold().red());
+    println!("{}", "=".repeat(80).red());
+
+    for finding in findings {
+        let package = finding["package_name"].as_str().unwrap_or("Unknown");
+        let version = finding["current_version"].as_str().unwrap_or("Unknown");
+        let severity = finding["severity"].as_str().unwrap_or("Unknown");
+        let cve_id = finding["cve_id"].as_str().unwrap_or("Unknown");
+        let recommended = finding["recommended_version"].as_str().unwrap_or("None");
+
+        let sev_enum = severity.parse::<Severity>().unwrap_or(Severity::Low);
+        if matches!(sev_enum, Severity::Critical | Severity::High) {
+            has_high_severity = true;
+        }
+
+        println!("  {} {}@{} - {}", severity_colored(&sev_enum), package, version, cve_id.bold());
+        println!("    {} Recommended patch: {}", "↳".bright_black(), recommended.green());
+    }
+
+    println!("\n{}", "=".repeat(80).red());
+    println!("{} issue(s) detected\n", findings.len());
+
+    if fail_on_high && has_high_severity {
+        std::process::exit(1);
+    }
+
+    Ok(())
+}

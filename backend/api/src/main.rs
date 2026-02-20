@@ -21,6 +21,9 @@ mod scoring;
 mod state;
 mod template_handlers;
 mod template_routes;
+mod scanner_service;
+mod scan_handlers;
+mod scan_routes;
 
 use anyhow::Result;
 use axum::http::{header, HeaderValue, Method};
@@ -74,6 +77,7 @@ async fn main() -> Result<()> {
         .merge(config_routes::config_routes())
         .merge(contract_history_routes::contract_history_routes())
         .merge(template_routes::template_routes())
+        .merge(scan_routes::scan_routes())
         .route("/metrics", get(observability::metrics_handler))
         .fallback(handlers::route_not_found)
         .layer(middleware::from_fn(metrics_middleware))
