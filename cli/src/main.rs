@@ -223,6 +223,44 @@ pub enum Commands {
         #[command(subcommand)]
         action: SlaCommands,
     },
+
+    /// Validate a contract function call for type safety
+    ValidateCall {
+        /// Contract ID to validate against
+        contract_id: String,
+        /// Method name to call
+        method_name: String,
+        /// Parameters (positional arguments after method name)
+        #[arg(trailing_var_arg = true)]
+        params: Vec<String>,
+        /// Enable strict mode (no implicit type conversions)
+        #[arg(long)]
+        strict: bool,
+    },
+
+    /// Generate type-safe bindings for a contract
+    GenerateBindings {
+        /// Contract ID to generate bindings for
+        contract_id: String,
+        /// Output language: typescript or rust
+        #[arg(long, default_value = "typescript")]
+        language: String,
+        /// Output file path (defaults to stdout)
+        #[arg(long, short)]
+        output: Option<String>,
+    },
+
+    /// List functions available on a contract
+    ListFunctions {
+        /// Contract ID to list functions for
+        contract_id: String,
+    },
+
+    /// Get trust score for a contract
+    TrustScore {
+        /// Contract UUID to score
+        contract_id: String,
+    },
 }
 
 /// Sub-commands for the `sla` group
@@ -244,12 +282,6 @@ pub enum SlaCommands {
         /// Contract identifier
         id: String,
     },
-	     /// Show the trust score and breakdown for a contract
-    TrustScore {
-        /// Contract UUID to score
-        contract_id: String,
-    },
-
 }
 
 /// Sub-commands for the `multisig` group
@@ -448,11 +480,6 @@ async fn main() -> Result<()> {
             }
         },
 
-		  Commands::TrustScore { contract_id } => {
-            log::debug!("Command: trust-score | contract_id={}", contract_id);
-            commands::trust_score(&cli.api_url, &contract_id, network).await?;
-        },
-
         // ── Multi-sig commands (issue #47) ───────────────────────────────────
         Commands::Multisig { action } => match action {
             MultisigCommands::CreatePolicy { name, threshold, signers, expiry_secs, created_by } => {
@@ -541,11 +568,30 @@ async fn main() -> Result<()> {
             SlaCommands::Status { id } => {
                 log::debug!("Command: sla status | id={}", id);
                 commands::sla_status(&id)?;
-        Commands::Deps { command } => match command {
-            DepsCommands::List { contract_id } => {
-                commands::deps_list(&cli.api_url, &contract_id).await?;
             }
         },
+        Commands::ValidateCall { contract_id, method_name, params, strict } => {
+            log::debug!(
+                "Command: validate-call | contract_id={} method={} strict={}",
+                contract_id, method_name, strict
+            );
+            commands::validate_call(&cli.api_url, &contract_id, &method_name, &params, strict).await?;
+        }
+        Commands::GenerateBindings { contract_id, language, output } => {
+            log::debug!(
+                "Command: generate-bindings | contract_id={} language={}",
+                contract_id, language
+            );
+            commands::generate_bindings(&cli.api_url, &contract_id, &language, output.as_deref()).await?;
+        }
+        Commands::ListFunctions { contract_id } => {
+            log::debug!("Command: list-functions | contract_id={}", contract_id);
+            commands::list_functions(&cli.api_url, &contract_id).await?;
+        }
+        Commands::TrustScore { contract_id } => {
+            log::debug!("Command: trust-score | contract_id={}", contract_id);
+            commands::trust_score(&cli.api_url, &contract_id, network).await?;
+        }
     }
 
     Ok(())
