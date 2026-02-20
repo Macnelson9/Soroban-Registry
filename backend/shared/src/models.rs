@@ -103,6 +103,37 @@ pub struct PublishRequest {
     pub tags: Vec<String>,
     pub source_url: Option<String>,
     pub publisher_address: String,
+    // Dependencies (new field)
+    #[serde(default)]
+    pub dependencies: Vec<DependencyDeclaration>,
+}
+
+/// Dependency declaration in publish request
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DependencyDeclaration {
+    pub name: String,
+    pub version_constraint: String,
+}
+
+/// Contract dependency record (database row)
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct ContractDependency {
+    pub id: Uuid,
+    pub contract_id: Uuid,
+    pub dependency_name: String,
+    pub dependency_contract_id: Option<Uuid>,
+    pub version_constraint: String,
+    pub created_at: DateTime<Utc>,
+}
+
+/// Recursive dependency tree node for API response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DependencyTreeNode {
+    pub contract_id: String, // Public key ID
+    pub name: String,
+    pub current_version: String,
+    pub constraint_to_parent: String,
+    pub dependencies: Vec<DependencyTreeNode>,
 }
 
 /// Request to verify a contract

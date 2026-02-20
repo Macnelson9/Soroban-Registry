@@ -306,6 +306,21 @@ pub enum PatchCommands {
         #[arg(long)]
         patch_id: String,
     },
+
+    /// Manage contract dependencies
+    Deps {
+        #[command(subcommand)]
+        command: DepsCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum DepsCommands {
+    /// List dependencies for a contract
+    List {
+        /// Contract ID
+        contract_id: String,
+    },
 }
 
 #[tokio::main]
@@ -486,6 +501,11 @@ async fn main() -> Result<()> {
             )
             .await?;
         }
+        Commands::Deps { command } => match command {
+            DepsCommands::List { contract_id } => {
+                commands::deps_list(&cli.api_url, &contract_id).await?;
+            }
+        },
     }
 
     Ok(())

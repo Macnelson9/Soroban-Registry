@@ -15,6 +15,17 @@ export interface Contract {
   updated_at: string;
 }
 
+export interface ContractHealth {
+  contract_id: string;
+  status: 'healthy' | 'warning' | 'critical';
+  last_activity: string;
+  security_score: number;
+  audit_date?: string;
+  total_score: number;
+  recommendations: string[];
+  updated_at: string;
+}
+
 export interface ContractVersion {
   id: string;
   contract_id: string;
@@ -42,6 +53,14 @@ export interface PaginatedResponse<T> {
   page: number;
   page_size: number;
   total_pages: number;
+}
+
+export interface DependencyTreeNode {
+  contract_id: string;
+  name: string;
+  current_version: string;
+  constraint_to_parent: string;
+  dependencies: DependencyTreeNode[];
 }
 
 export interface ContractSearchParams {
@@ -198,6 +217,12 @@ export const api = {
       body: JSON.stringify(data),
     });
     if (!response.ok) throw new Error('Failed to publish contract');
+    return response.json();
+  },
+
+  async getContractHealth(id: string): Promise<ContractHealth> {
+    const response = await fetch(apiUrl(`/api/contracts/${id}/health`));
+    if (!response.ok) throw new Error('Failed to fetch contract health');
     return response.json();
   },
 
