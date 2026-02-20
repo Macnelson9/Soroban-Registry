@@ -13,12 +13,17 @@ pub fn contract_routes() -> Router<AppState> {
         .route("/api/contracts/:id/abi", get(handlers::get_contract_abi))
         .route("/api/contracts/:id/versions", get(handlers::get_contract_versions))
         .route(
-            "/api/contracts/:id/versions",
-            get(handlers::get_contract_versions),
-        )
-        .route(
             "/api/contracts/:id/analytics",
             get(handlers::get_contract_analytics),
+        )
+        .route(
+            "/api/contracts/:id/dependencies",
+            get(handlers::get_contract_dependencies),
+        )
+        .route(
+            "/api/contracts/:id/dependents",
+            get(handlers::get_contract_dependents),
+        )
         )
         .route("/api/contracts/verify", post(handlers::verify_contract))
         .route("/api/contracts/:id/deployments/status", get(handlers::get_deployment_status))

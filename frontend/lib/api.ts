@@ -44,6 +44,14 @@ export interface PaginatedResponse<T> {
   total_pages: number;
 }
 
+export interface DependencyTreeNode {
+  contract_id: string;
+  name: string;
+  current_version: string;
+  constraint_to_parent: string;
+  dependencies: DependencyTreeNode[];
+}
+
 export interface ContractSearchParams {
   query?: string;
   network?: 'mainnet' | 'testnet' | 'futurenet';
